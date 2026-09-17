@@ -1,26 +1,44 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+	console.log('Starting DotCync...');
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "dotsync" is now active!');
+	const disposable = vscode.commands.registerCommand('dotsync.sync', async () => {
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+		if (!workspaceFolders) {
+			vscode.window.showErrorMessage('Open project directory first');
+			return;
+		}
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('dotsync.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from DotSync!');
+		const rootUri = workspaceFolders[0].uri;
+		const envUri = vscode.Uri.joinPath(rootUri, '.env');
+		const exampleUri = vscode.Uri.joinPath(rootUri, '.env.example');
+
+		const envContent = await readFileContent(envUri);
+		if (envContent === null) {
+			vscode.window.showErrorMessage('No .env file found in root directory');
+			return;
+		}
+		
+		let exampleContent = await readFileContent(exampleUri);
+		if (envContent === null) {
+			vscode.window.showInformationMessage('No .env.example file found in root directory. The new one will be created');
+			exampleContent = '';
+		}
+
 	});
 
 	context.subscriptions.push(disposable);
 }
 
-// This method is called when your extension is deactivated
+async function readFileContent(fileUri: vscode.Uri): Promise<string | null> {
+	try {
+		const data = await vscode.workspace.fs.readFile(fileUri);
+		return Buffer.from(data).toString('utf-8');
+	} catch (error) {
+		return null;
+	}
+}
+
+
 export function deactivate() {}
