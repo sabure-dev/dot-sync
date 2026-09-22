@@ -1,71 +1,86 @@
-# dotsync README
+# DotSync Plugin
 
-This is the README for your extension "dotsync". After writing up a brief description, we recommend including the following sections.
+**Автор:** Садреев Булат Ренатович, группа M3104  
+**Платформа:** Visual Studio Code  
+**Версия:** 1.0.0  
+  
+ТЗ к лабораторной находится в файле `TASK.md` в корне проекта  
 
-## Features
+## Описание
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+DotSync — расширение для Visual Studio Code, предназначенное для автоматической структурной синхронизации файлов переменных окружения. Оно сканирует локальный файл `.env` и генерирует на его основе файл `.env.example`, полностью повторяя структуру оригинала (включая отступы и разрешенные комментарии), но без конфиденциальных данных.
 
-For example if there is an image subfolder under your extension project workspace:
+Плагин предотвращает утечку секретов: значения переменных из `.env` отбрасываются, переносятся только сами ключи в формате `KEY=`. Если в старом `.env.example` уже были заданы безопасные значения по умолчанию для некоторых ключей, плагин их сохранит.
 
-\!\[feature X\]\(images/feature-x.png\)
+## Возможности
+* Автоматическое обнаружение файлов `.env` и `.env.example` в корне рабочей директории.
+* Создание `.env.example` при его отсутствии.
+* **Структурная синхронизация**: сохранение порядка ключей и пустых строк из `.env`.
+* **Умный перенос комментариев**: экспорт только разрешенных комментариев (начинающихся с `#!`). Обычные комментарии с одиночной `#` игнорируются.
+* **Защита существующих данных**: сохранение значений по умолчанию, уже вписанных пользователем в `.env.example`.
+* Вывод всплывающих уведомлений о статусе синхронизации.
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+## Использование
+1. Откройте директорию проекта в VS Code.
+2. Убедитесь, что в корневой директории существует файл `.env`.
+3. Откройте Command Palette (`Ctrl+Shift+P` на Windows/Linux или `Cmd+Shift+P` на macOS).
+4. Введите команду: `dotsync.sync`.
+5. Плагин проанализирует `.env` и перезапишет `.env.example`, обновив структуру и добавив новые ключи.
 
-## Requirements
+## Архитектура и структура
+Проект использует API расширений VS Code и работает по принципу однопроходного лексического анализа:
+* `activate` — регистрация команды в контексте редактора и запись итогового файла через `vscode.workspace.fs`.
+* `readFileContent` — чтение файлов из файловой системы.
+* `getExistingExampleLines` — индексация текущего `.env.example` с использованием структуры `Map` для сохранения пользовательских дефолтных значений (скорость поиска $O(1)$).
+* `generateNewExampleContent` — построчный обход `.env` и генерация нового содержимого с учетом пустых строк, префиксов комментариев и проверки наличия ключа в `Map`.
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+Техническая документация методов (JSDoc) доступна в исходном коде файла `extension.ts`.
 
-## Extension Settings
+## Архитектура плагина
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+```mermaid
+graph TD
+    A([Вызов команды dotsync.sync]) --> B{Открыто workspace?}
+    B -- Нет --> C[Вывод ошибки: Open project directory first]
+    C --> Z([Завершение работы])
+    
+    B -- Да --> D[Чтение файла /.env]
+    D --> E{Файл .env найден?}
+    E -- Нет --> F[Вывод ошибки: No .env file found]
+    F --> Z
+    
+    E -- Да --> G[Чтение файла /.env.example]
+    G --> H{Файл .env.example найден?}
+    
+    H -- Нет --> I[Инфо-сообщение о создании нового файла]
+    I --> J[Инициализация пустой строки в памяти]
+    
+    H -- Да --> K[Индексация существующих ключей из .env.example в Map]
+    J --> K
+    
+    K --> L[Построчный обход .env]
+    
+    L --> M{Тип строки?}
+    M -- "Пустая строка" --> N[Добавление пустой строки]
+    M -- "Начинается с #!" --> O[Добавление комментария]
+    M -- "Начинается с #" --> P[Пропуск строки]
+    M -- "Ключ=Значение" --> Q{Ключ есть в Map?}
+    
+    Q -- Да --> R[Добавление полной строки из старого .env.example]
+    Q -- Нет --> S[Добавление шаблона 'Ключ=']
+    
+    N --> T{Конец файла?}
+    O --> T
+    P --> T
+    R --> T
+    S --> T
+    
+    T -- Нет --> L
+    T -- Да --> U{Содержимое изменилось?}
+    
+    U -- Нет --> V[Инфо-сообщение: Files are already synchronized]
+    V --> Z
+    
+    U -- Да --> W[Перезапись .env.example]
+    W --> X[Инфо-сообщение: Successfully synchronized]
+    X --> Z

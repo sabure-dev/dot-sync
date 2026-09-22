@@ -4,7 +4,7 @@
   "description": "",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.138.0"
+    "vscode": "^1.136.0"
   },
   "categories": [
     "Other"
@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "dotsync.helloWorld",
-        "title": "Hello World"
+        "command": "dotsync.sync",
+        "title": "DotSync: sync .env and .env.example"
       }
     ]
   },
