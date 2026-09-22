@@ -4,7 +4,7 @@
 **Платформа:** Visual Studio Code  
 **Версия:** 1.0.0  
   
-ТЗ к лабораторной находится в файле `TASK.md` в корне проекта  
+ТЗ к лабораторной находится в файле [TASK.md](https://github.com/sabure-dev/dot-sync/edit/main/TASK.md) в корне проекта  
 
 ## Описание
 
